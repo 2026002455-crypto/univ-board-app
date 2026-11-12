@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3단계: 복합 다중 게시판</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root[data-theme="light"] {
+            --bg: #f3f1ec;
+            --paper: #ffffff;
+            --ink: #1d2433;
+            --sub: #667085;
+            --line: #e3e0d8;
+            --navy: #1f3a5f;
+            --navy2: #2c5282;
+            --pin: #c2410c;
+            --pinbg: #fff4e8;
+            --ok: #15803d;
+            --bad: #b42318;
+            --card-bg: #ffffff;
+            --hover-bg: #faf9f6;
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0f172a;
+            --paper: #1e293b;
+            --ink: #f8fafc;
+            --sub: #cbd5e1;
+            --line: #334155;
+            --navy: #1e293b;
+            --navy2: #3b82f6;
+            --pin: #f97316;
+            --pinbg: #2d1a10;
+            --ok: #22c55e;
+            --bad: #ef4444;
+            --card-bg: #1e293b;
+            --hover-bg: #334155;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font: 15px/1.6 "IBM Plex Sans KR", system-ui, sans-serif;
+            transition: background .2s, color .2s
+        }
+
+        .hidden {
+            display: none !important
+        }
+
+        .wrap {
+            width: 95%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 20px
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--navy2);
+            outline-offset: 2px
+        }
+
+        .top {
+            background: var(--navy);
+            color: #fff
+        }
+
+        .top .wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 20px;
+            flex-wrap: wrap
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px
+        }
+
+        .badge {
+            font-size: 12px;
+            padding: 2px 9px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, .18)
+        }
+
+        .all-location {
+            white-space: nowrap
+        }
+
+        .badge.admin {
+            background: #f5b84a;
+            color: #3a2a00;
+            font-weight: 700
+        }
+
+        .tabs {
+            background: var(--paper);
+            border-bottom: 1px solid var(--line)
+        }
+
+        .tabs .wrap {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto
+        }
+
+        .tab {
+            background: none;
+            border: 0;
+            padding: 14px 20px;
+            font: inherit;
+            font-weight: 500;
+            color: var(--sub);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap
+        }
+
+        .tab.on {
+            color: var(--navy2);
+            border-color: var(--navy2);
+            font-weight: 700
+        }
+
+        main {
+            padding: 24px 0 8px
+        }
+
+        .btn {
+            font: inherit;
+            font-size: 14px;
+            padding: 7px 16px;
+            border: 1px solid var(--line);
+            background: var(--paper);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--ink);
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .btn:hover {
+            border-color: var(--sub)
+        }
+
+        .btn.pri {
+            background: var(--navy2);
+            border-color: var(--navy2);
+            color: #fff
+        }
+
+        .btn.del {
+            color: var(--bad);
+            border-color: #f0c4bf
+        }
+
+        .btn.sm {
+            padding: 4px 10px;
+            font-size: 12px
+        }
+
+        .btn:disabled {
+            opacity: .45;
+            cursor: not-allowed
+        }
+
+        input,
+        textarea,
+        select {
+            font: inherit;
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        input[type=checkbox] {
+            width: auto;
+            margin-right: 6px
+        }
+
+        input[type=radio] {
+            width: auto;
+            margin-right: 6px
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 20px
+        }
+
+        .bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px
+        }
+
+        .cafe-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 24px
+        }
+
+        .cafe-layout.suggestion-mode {
+            grid-template-columns: 1fr
+        }
+
+        @media(max-width:860px) {
+            .cafe-layout {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 20px
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .tree-group {
+            margin-bottom: 14px
+        }
+
+        .tree-head {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--sub);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .tree-item {
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: block;
+            color: var(--ink);
+            text-decoration: none;
+            margin-bottom: 3px
+        }
+
+        .tree-item:hover,
+        .tree-item.on {
+            background: var(--hover-bg);
+            color: var(--navy2);
+            font-weight: 700
+        }
+
+        .modal-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100
+        }
+
+        .modal {
+            background: var(--paper);
+            border-radius: 12px;
+            padding: 28px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--line)
+        }
+
+        .modal h2 {
+            margin: 0 0 18px;
+            font-size: 20px
+        }
+
+        .auth {
+            max-width: 420px;
+            margin: 60px auto 0
+        }
+
+        .auth h1 {
+            margin: 0 0 4px;
+            font-size: 24px;
+            letter-spacing: -.02em
+        }
+
+        .auth p.lead {
+            margin: 0 0 20px;
+            color: var(--sub);
+            font-size: 14px
+        }
+
+        .auth label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin: 12px 0 4px
+        }
+
+        .auth .btn {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px
+        }
+
+        .auth .sw {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--sub)
+        }
+
+        .auth .sw a {
+            color: var(--navy2);
+            font-weight: 700;
+            cursor: pointer
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--sub)
+        }
+
+        .bhead {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px
+        }
+
+        .bhead h2 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: -.02em
+        }
+
+        .lock {
+            font-size: 13px;
+            color: var(--bad);
+            border: 1px solid var(--bad);
+            background: #fdecea;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-weight: 600
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden
+        }
+
+        th,
+        td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+            color: var(--ink)
+        }
+
+        th {
+            background: var(--hover-bg);
+            font-size: 14px;
+            color: var(--sub);
+            font-weight: 600
+        }
+
+        tr.pin td {
+            background: var(--pinbg)
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--pin);
+            border: 1px solid var(--pin);
+            border-radius: 4px;
+            padding: 0 6px;
+            margin-right: 6px
+        }
+
+        td a {
+            color: var(--ink);
+            text-decoration: none;
+            font-weight: 500
+        }
+
+        td a:hover {
+            text-decoration: underline;
+            color: var(--navy2)
+        }
+
+        .num {
+            width: 80px;
+            color: var(--sub)
+        }
+
+        .cnt {
+            width: 70px;
+            text-align: center;
+            color: var(--sub)
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--sub);
+            padding: 48px 0 !important
+        }
+
+        .pg {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap
+        }
+
+        .pg .btn.on {
+            background: var(--navy2);
+            color: #fff;
+            border-color: var(--navy2)
+        }
+
+        .meta {
+            color: var(--sub);
+            font-size: 14px;
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap
+        }
+
+        .body {
+            white-space: pre-wrap;
+            margin: 20px 0;
+            padding: 20px 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            font-size: 15px;
+            line-height: 1.7
+        }
+
+        .cm {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            gap: 12px
+        }
+
+        .cm small {
+            color: var(--sub)
+        }
+
+        .warn {
+            background: #fdecea;
+            color: var(--bad);
+            border: 1px solid #f4c7c2;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 14px
+        }
+
+        .st {
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 99px
+        }
+
+        .st.approved {
+            background: #e6f4ea;
+            color: var(--ok)
+        }
+
+        .st.suspended {
+            background: #fdecea;
+            color: var(--bad)
+        }
+
+        .st.pending {
+            background: #fff4e8;
+            color: var(--pin)
+        }
+
+        .acts {
+            display: flex;
+            gap: 6px;
+            flex-wrap: nowrap;
+            align-items: center
+        }
+
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 32px;
+            transform: translateX(-50%);
+            background: var(--ink);
+            color: var(--paper);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 99;
+            max-width: 90vw
+        }
+
+        #toast.err {
+            background: var(--bad)
+        }
+
+        footer {
+            text-align: center;
+            color: var(--sub);
+            font-size: 13px;
+            padding: 32px 0 40px
+        }
+
+        @media(max-width:560px) {
+
+            .num,
+            #v-list th:nth-child(4),
+            #v-list td:nth-child(4) {
+                display: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="top hidden" id="top">
+        <div class="wrap">
+            <div class="brand">🎓 학과 게시판</div>
+            <div class="me">
+                <button class="btn sm" onclick="toggleTheme()">🌙/☀️</button>
+                <span id="u-name"></span><span class="badge" id="u-role"></span>
+                <button class="btn sm" onclick="openProfileModal()">회원정보</button>
+                <button class="btn sm" onclick="logout()">로그아웃</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="tabs hidden" id="tabs">
+        <div class="wrap">
+            <button class="tab on" id="tab-all" onclick="goTab('all')">전체 게시글</button>
+            <button class="tab" id="tab-board" onclick="goTab('board')">게시판</button>
+            <button class="tab" id="tab-suggestions" onclick="goTab('suggestions')">건의사항</button>
+            <button class="tab" id="tab-join" onclick="goTab('join')">공간 가입</button>
+            <button class="tab hidden" id="tab-ops" onclick="goTab('ops')">공간 운영</button>
+            <button class="tab hidden" id="tab-admin" onclick="goTab('admin')">관리자</button>
+        </div>
+    </nav>
+
+    <div class="wrap">
+
+        <!-- 인증 화면 -->
+        <section id="login" class="panel auth">
+            <h1>로그인</h1>
+            <p class="lead">공간별로 운영되는 게시판입니다.</p>
+            <label for="l-email">이메일</label><input id="l-email" type="email" autocomplete="username">
+            <label for="l-pw">비밀번호</label><input id="l-pw" type="password" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter')login()">
+            <button class="btn pri" onclick="login()">로그인</button>
+            <div class="sw">
+                <a onclick="openResetModal()">비밀번호 재설정</a> |
+                계정이 없나요? <a onclick="showAuth('signup')">회원가입</a>
+            </div>
+        </section>
+
+        <section id="signup" class="panel auth hidden">
+            <h1>회원가입</h1>
+            <p class="lead">게시글과 댓글에는 입력한 이름이 표시됩니다.</p>
+            <label for="s-name">이름</label><input id="s-name" maxlength="20">
+            <label for="s-phone">전화번호 (- 없이 입력)</label><input id="s-phone" placeholder="01012345678" maxlength="15">
+            <label for="s-email">이메일</label><input id="s-email" type="email">
+            <label for="s-pw">비밀번호</label><input id="s-pw" type="password" autocomplete="new-password">
+            <div class="hint">6자 이상</div>
+            <button class="btn pri" onclick="signup()">가입하기</button>
+            <div class="sw">이미 계정이 있나요? <a onclick="showAuth('login')">로그인</a></div>
+        </section>
+
+        <main id="app" class="hidden">
+            <div id="suspended" class="warn hidden">이 공간에서 이용이 정지되었습니다. 글과 댓글은 읽을 수만 있습니다.</div>
+
+            <!-- 1. 전체 게시물 피드 -->
+            <div id="v-all" class="cafe-layout suggestion-mode hidden">
+                
+                <div>
+                    <div id="all-list" class="panel">
+    <h3 style="margin-top:0">내 공간 새 글</h3>
+    <div class="bar">
+        <select id="all-space" style="width:200px" onchange="renderAllPosts(1)"></select>
+        <input id="all-kw" placeholder="제목 검색" onkeydown="if(event.key==='Enter')renderAllPosts(1)">
+        <button class="btn" onclick="renderAllPosts(1)">검색</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:160px">공간 / 게시판</th>
+                <th>제목</th>
+                <th style="width:120px">작성자</th>
+                <th style="width:130px">작성일</th>
+                <th class="cnt">조회</th>
+            </tr>
+        </thead>
+        <tbody id="all-rows"></tbody>
+    </table>
+    <div class="pg" id="all-pg"></div>
+</div>
+                    </div>
+
+                    <!-- 전체 게시글 탭 전용 상세보기 화면 -->
+                    <div id="all-detail" class="panel hidden">
+                        <div class="hint" id="ad-board"></div>
+                        <h2 id="ad-t" style="margin:0 0 8px"></h2>
+                        <div class="meta"><span>작성자 <b id="ad-a"></b></span><span>작성 <span
+                                    id="ad-c"></span></span><span>수정 <span id="ad-u"></span></span><span>조회 <b
+                                    id="ad-v"></b></span></div>
+                        <div class="body" id="ad-body"></div>
+                        <div style="margin:0 0 16px"><button class="btn" id="ad-like" onclick="toggleLike()"></button>
+                        </div>
+                        <div id="ad-act" style="margin-bottom:24px"></div>
+                        <h4 style="margin:0 0 8px">댓글 <span id="acm-n" class="hint"></span></h4>
+                        <div id="acm"></div>
+                        <div class="bar" style="margin-top:14px"><input id="acm-in" placeholder="댓글을 입력하세요"
+                                maxlength="300" onkeydown="if(event.key==='Enter')addCm()"><button class="btn pri"
+                                onclick="addCm()">댓글 등록</button></div>
+                        <button class="btn" onclick="toAllList()">목록으로</button>
+                    </div>
+                </div>
+
+            <!-- 2. 네이버 카페 스타일 게시판 -->
+            <div id="v-board" class="cafe-layout">
+                <div class="sidebar" id="board-sidebar">
+                    <div class="sidebar-title">공간 목록</div>
+                    <div id="board-tree"></div>
+                </div>
+
+                <div>
+                    <div id="board-body">
+                        <div id="v-list">
+                            <div class="panel">
+                                <div class="bhead">
+                                    <h2 id="b-name"></h2>
+                                    <span id="b-lock" class="lock hidden">🔒 권한이 부여되지 않았습니다</span>
+                                    <span class="hint" id="b-desc"></span>
+                                </div>
+                                <div class="bar" id="board-toolbar">
+                                    <input id="kw" placeholder="이 게시판에서 검색" onkeydown="if(event.key==='Enter')load(1)">
+                                    <button class="btn" onclick="load(1)">검색</button>
+                                    <button class="btn pri" id="btn-write" onclick="openForm()">글쓰기</button>
+                                </div>
+                                <div id="form" class="panel hidden" style="border:1px dashed var(--line)">
+                                    <h3 id="f-title" style="margin-top:0"></h3>
+                                    <input type="hidden" id="f-id">
+                                    <input id="f-t" placeholder="제목" maxlength="100" style="margin-bottom:8px">
+                                    <textarea id="f-c" rows="8" placeholder="내용"></textarea>
+
+                                    <div style="display:flex;gap:18px;margin-top:12px;flex-wrap:wrap">
+                                        <label><input type="checkbox" id="f-anon"> 익명으로 작성</label>
+                                        <label><input type="checkbox" id="f-priv"> 비공개글(비밀글)로 등록</label>
+                                        <label id="f-notice" class="hidden"><input type="checkbox" id="f-n"> 공지사항
+                                            등록</label>
+                                    </div>
+
+                                    <div style="margin-top:16px"><button class="btn pri" onclick="save()">저장</button>
+                                        <button class="btn" onclick="closeForm()">취소</button></div>
+                                </div>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="num">번호</th>
+                                            <th>제목</th>
+                                            <th style="width:130px">작성자</th>
+                                            <th style="width:130px">작성일</th>
+                                            <th class="cnt">조회</th>
+                                            <th class="cnt">추천</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rows"></tbody>
+                                </table>
+                                <div class="pg" id="pg"></div>
+                            </div>
+                        </div>
+
+                        <div id="v-detail" class="panel hidden">
+                            <div class="hint" id="d-board"></div>
+                            <h2 id="d-t" style="margin:0 0 8px"></h2>
+                            <div class="meta"><span>작성자 <b id="d-a"></b></span><span>작성 <span
+                                        id="d-c"></span></span><span>수정 <span id="d-u"></span></span><span>조회 <b
+                                        id="d-v"></b></span></div>
+                            <div class="body" id="d-body"></div>
+                            <div style="margin:0 0 16px"><button class="btn" id="d-like"
+                                    onclick="toggleLike()"></button></div>
+                            <div id="d-act" style="margin-bottom:24px"></div>
+                            <h4 style="margin:0 0 8px">댓글 <span id="cm-n" class="hint"></span></h4>
+                            <div id="cm"></div>
+                            <div class="bar" style="margin-top:14px"><input id="cm-in" placeholder="댓글을 입력하세요"
+                                    maxlength="300" onkeydown="if(event.key==='Enter')addCm()"><button class="btn pri"
+                                    onclick="addCm()">댓글 등록</button></div>
+                            <button class="btn" onclick="toList()">목록으로</button>
+                        </div>
+                    </div>
+
+                    <div id="no-space" class="panel empty hidden">가입한 공간이 없습니다. “공간 가입” 탭에서 신청하고, 운영자의 승인을 기다려 주세요.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 공간 가입 -->
+            <div id="v-join" class="hidden">
+                <div class="panel">
+                    <h3 style="margin-top:0">공간 목록</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>공간</th>
+                                <th>설명</th>
+                                <th style="width:160px">상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="join-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. 공간 운영 -->
+            <div id="v-ops" class="hidden">
+                <div class="panel">
+                    <h3 style="margin-top:0"><span id="o-space"></span> · 게시판 관리</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>설명</th>
+                                <th>글쓰기</th>
+                                <th>전담 운영자</th>
+                                <th style="width:320px">조치</th>
+                            </tr>
+                        </thead>
+                        <tbody id="b-rows"></tbody>
+                    </table>
+                    <div class="row3" style="display:flex;gap:10px;margin-top:14px">
+                        <input id="nb-name" placeholder="새 게시판 이름" maxlength="30">
+                        <input id="nb-desc" placeholder="설명 (선택)" maxlength="80">
+                        <select id="nb-perm" style="width:180px">
+                            <option value="all">전체 회원</option>
+                            <option value="op">운영자만</option>
+                        </select>
+                        <button class="btn pri" onclick="addBoard()">추가</button>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3 style="margin-top:0"><span id="o-space2"></span> · 회원 관리</h3>
+                    <p class="hint">가입, 운영 정지, 탈퇴를 관리합니다. 정지와 탈퇴는 이 공간에만 적용됩니다.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>아이디/이메일</th>
+                                <th>전화번호</th>
+                                <th>역할</th>
+                                <th>상태</th>
+                                <th style="width:360px">조치</th>
+                            </tr>
+                        </thead>
+                        <tbody id="members"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. 관리자 -->
+            <div id="v-admin" class="hidden">
+                <div class="panel">
+                    <h3 style="margin-top:0">공간 관리 (전체 관리자)</h3>
+                    <p class="hint">공간을 만들고 삭제합니다. 운영자 지정은 “공간 운영 → 회원 관리”에서 가입한 회원을 운영자로 지정하세요.</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>설명</th>
+                                <th style="width:100px">조치</th>
+                            </tr>
+                        </thead>
+                        <tbody id="s-rows"></tbody>
+                    </table>
+                    <div class="row2" style="display:flex;gap:10px;margin-top:14px">
+                        <input id="ns-name" placeholder="새 공간 이름" maxlength="30">
+                        <input id="ns-desc" placeholder="설명 (선택)" maxlength="80">
+                        <button class="btn pri" onclick="addSpace()">공간 만들기</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>본 시스템은 본인확인을 하지 않습니다.</footer>
+    </div>
+
+    <!-- 모달 1: 회원 정보 관리 -->
+    <div id="modal-profile" class="modal-bg hidden">
+        <div class="modal">
+            <h2>회원 계정 정보</h2>
+            <label>이름</label><input id="p-name" style="margin-bottom:10px">
+            <label>휴대폰 번호</label><input id="p-phone" style="margin-bottom:10px">
+            <label>이메일 (변경 불가)</label><input id="p-email" disabled style="margin-bottom:10px">
+            <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+            <label>새 비밀번호 변경</label><input id="p-pw" type="password" placeholder="비밀번호 변경 시에만 입력">
+            <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn pri" onclick="updateProfile()">저장</button>
+                <button class="btn" onclick="$('modal-profile').classList.add('hidden')">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달 2: 비밀번호 재설정 -->
+    <div id="modal-reset" class="modal-bg hidden">
+        <div class="modal">
+            <h2>비밀번호 재설정</h2>
+            <p class="hint" style="margin-bottom:12px">가입 시 등록한 휴대폰 번호로 비밀번호를 변경합니다.</p>
+            <label>전화번호 (- 없이 입력)</label><input id="r-phone" placeholder="01012345678" style="margin-bottom:10px">
+            <label>새 비밀번호</label><input id="r-pw" type="password" style="margin-bottom:10px">
+            <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn pri" onclick="resetPasswordByPhone()">비밀번호 변경</button>
+                <button class="btn" onclick="$('modal-reset').classList.add('hidden')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-operator" class="modal-bg hidden">
+        <div class="modal">
+            <h2 id="operator-modal-title">운영자 지정</h2>
+            <p class="hint">현재 공간에 가입된 회원의 아이디/이메일을 입력하세요.</p>
+            <label for="operator-email">아이디/이메일</label><input id="operator-email" autocomplete="off"
+                onkeydown="if(event.key==='Enter')saveOperatorByEmail()">
+            <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn pri" onclick="saveOperatorByEmail()">확인</button>
+                <button class="btn" onclick="closeMemberModal('modal-operator')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-suspension" class="modal-bg hidden">
+        <div class="modal">
+            <h2>운영 정지</h2>
+            <p class="hint" id="suspension-target"></p>
+            <label for="suspension-reason">정지 사유 (선택)</label>
+            <textarea id="suspension-reason" rows="4" maxlength="300" placeholder="사유를 입력하세요"></textarea>
+            <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn pri" onclick="suspendMember()">정지</button>
+                <button class="btn" onclick="closeMemberModal('modal-suspension')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-delete-member" class="modal-bg hidden">
+        <div class="modal">
+            <h2>계정 삭제</h2>
+            <p class="hint" id="delete-member-name"></p>
+            <label style="display:block;margin:10px 0"><input id="delete-scope-space" type="radio" name="delete-scope" value="space" checked>
+                이 공간에서만 탈퇴 처리</label>
+            <label id="delete-site-option" class="hidden" style="display:block;margin:10px 0"><input id="delete-scope-site" type="radio"
+                    name="delete-scope" value="site"> 사이트 전체 계정 삭제</label>
+            <p class="hint">작성한 글과 댓글은 내용이 유지되며 작성자는 “탈퇴한 회원”으로 표시됩니다.</p>
+            <div style="margin-top:18px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn del" onclick="deleteMemberAccount()">계정 삭제</button>
+                <button class="btn" onclick="closeMemberModal('modal-delete-member')">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <script>
+        const sb = window.supabase.createClient(
+            "https://irlexfsajcaljeilsajt.supabase.co",
+            "sb_publishable_N1oNzFXu7KrMu-mgz0-qGA_rJkef_At"
+        );
+        const GLOBAL_SUGGESTION_SPACE = '__global_suggestions__';
+        const SUGGESTION_BOARD_NAME = '건의사항';
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        let me = null, prof = null, spaces = [], mem = {}, curSpace = null, boards = [], allBoards = [], curBoard = null, suggestionSpace = null, suggestionBoard = null, currentSpaceMembers = [], operatorIntent = null, deleteTargetUserId = null, curPost = null, curAuthor = null, liked = false, curPage = 1, curTab = 'board', tt;
+        let loaded = false, suggestionReady = false;
+
+        const isAdmin = () => prof?.role === 'admin';
+        const isSusp = () => prof?.status === 'suspended';
+        const normalizeMembership = membership => ({
+            ...membership,
+            role: membership.role || 'member',
+            status: membership.status || 'approved',
+            left_at: membership.left_at || membership.deleted_at || (membership.deleted ? 'deleted' : null),
+            suspension_reason: membership.suspension_reason || null
+        });
+        const normalizeSpaceMember = member => {
+            const profile = Array.isArray(member.profiles) ? (member.profiles[0] || {}) : (member.profiles || {});
+            return {
+                ...member,
+                name: member.name || profile.name || '알 수 없음',
+                email: (member.email || profile.email || '-').trim(),
+                phone: member.phone || profile.phone || '-',
+                role: member.role || 'member',
+                status: member.status || 'approved',
+                site_role: member.site_role || profile.role || 'user',
+                left_at: member.left_at || member.deleted_at || (member.deleted ? 'deleted' : null),
+                suspension_reason: member.suspension_reason || null
+            };
+        };
+        const isOp = sid => isAdmin() || (mem[sid]?.role === 'operator' && mem[sid]?.status === 'approved' && !mem[sid]?.left_at);
+        const canPost = sid => !isSusp() && (isAdmin() || (mem[sid]?.status === 'approved' && !mem[sid]?.left_at));
+        const isSuggestionBoard = () => !!suggestionBoard && curBoard?.id === suggestionBoard.id;
+        const isSuggestionTab = () => curTab === 'suggestions';
+        const canPostCurrent = () => !isSusp() && (isSuggestionBoard() || (!!curSpace && canPost(curSpace.id)));
+        const canWrite = () => !!curBoard && !!curSpace && canPostCurrent() && (isSuggestionBoard() || curBoard.write_perm === 'all' || isOp(curSpace.id));
+        const mySpaces = () => isAdmin() ? spaces : spaces.filter(s => mem[s.id] && mem[s.id].status !== 'pending' && !mem[s.id].left_at);
+        const fmt = d => new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
+        const permTxt = p => p === 'op' || p === 'admin' ? '운영자만' : '전체 회원';
+        const dbPerm = p => p === 'op' ? 'admin' : 'all';
+
+        function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = err ? 'err' : ''; clearTimeout(tt); tt = setTimeout(() => t.classList.add('hidden'), 2800); }
+        function showAuth(w) { $('login').classList.toggle('hidden', w !== 'login'); $('signup').classList.toggle('hidden', w !== 'signup'); }
+        function toggleTheme() { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); }
+
+        /* ---------- 인증 & 프로필 ---------- */
+        async function signup() {
+            const name = $('s-name').value.trim(), phone = $('s-phone').value.trim(), email = $('s-email').value.trim(), password = $('s-pw').value;
+            if (!name || !phone || !email || !password) return toast('모든 항목을 입력해 주세요.', 1);
+            if (!/^\S+@\S+\.\S+$/.test(email)) return toast('이메일 형식이 올바르지 않습니다.', 1);
+            if (password.length < 6) return toast('비밀번호는 6자 이상이어야 합니다.', 1);
+            const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name, phone } } });
+            if (error) return toast(/registered|already/i.test(error.message) ? '이미 가입된 이메일입니다.' : '가입 실패: ' + error.message, 1);
+            if (data.session) await sb.from('profiles').upsert({ id: data.user.id, name, phone, role: 'user', status: 'active' }, { ignoreDuplicates: true });
+            await sb.auth.signOut();
+            toast('가입되었습니다. 로그인해 주세요.');
+            $('l-email').value = email; $('l-pw').value = ''; showAuth('login');
+        }
+
+        async function login() {
+            const email = $('l-email').value.trim(), password = $('l-pw').value;
+            if (!email || !password) return toast('이메일과 비밀번호를 입력해 주세요.', 1);
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) return toast('이메일 또는 비밀번호가 올바르지 않습니다.', 1);
+            await init();
+        }
+
+        async function logout() {
+            await sb.auth.signOut();
+            loaded = false; suggestionReady = false; allBoards = [];
+            me = prof = curSpace = curBoard = suggestionSpace = suggestionBoard = null;
+            spaces = []; mem = {}; boards = [];
+            await init();
+        }
+
+        async function init() {
+            loaded = false;
+            ['top', 'tabs', 'app'].forEach(i => $(i).classList.add('hidden'));
+            try {
+                const { data } = await sb.auth.getUser(); me = data?.user || null;
+                if (!me) { prof = null; showAuth('login'); return; }
+                const { data: p, error } = await sb.from('profiles').select('*').eq('id', me.id).single();
+                if (error) throw error;
+                prof = p;
+                $('u-name').textContent = prof?.name || '사용자';
+                const r = $('u-role'); r.textContent = isAdmin() ? '전체 관리자' : '일반 사용자'; r.className = 'badge' + (isAdmin() ? ' admin' : '');
+
+                $('tab-join').classList.toggle('hidden', isAdmin());
+                $('tab-admin').classList.toggle('hidden', !isAdmin());
+                $('login').classList.add('hidden'); $('signup').classList.add('hidden');
+                ['top', 'tabs', 'app'].forEach(i => $(i).classList.remove('hidden'));
+                await goTab('board');
+            } catch (error) {
+                console.error('초기화 실패:', error);
+                me = prof = null; loaded = false;
+                ['top', 'tabs', 'app'].forEach(i => $(i).classList.add('hidden'));
+                showAuth('login');
+                toast('로그인 상태를 불러오지 못했습니다. Supabase URL과 anon 키를 확인해 주세요.', 1);
+            }
+        }
+
+        /* ---------- 비밀번호 재설정 & 프로필 수정 ---------- */
+        function openResetModal() { $('modal-reset').classList.remove('hidden'); }
+        async function resetPasswordByPhone() {
+            const phone = $('r-phone').value.trim(), newPw = $('r-pw').value;
+            if (!phone || !newPw) return toast('전화번호와 새 비밀번호를 입력해 주세요.', 1);
+            const { data: p, error } = await sb.from('profiles').select('id').eq('phone', phone).single();
+            if (error || !p) return toast('일치하는 회원 정보를 찾을 수 없습니다.', 1);
+            toast('전화번호 확인이 완료되었습니다. 비밀번호 변경을 실행합니다.');
+            $('modal-reset').classList.add('hidden');
+        }
+
+        function openProfileModal() {
+            $('p-name').value = prof?.name || ''; $('p-phone').value = prof?.phone || ''; $('p-email').value = me.email;
+            $('modal-profile').classList.remove('hidden');
+        }
+        async function updateProfile() {
+            const name = $('p-name').value.trim(), phone = $('p-phone').value.trim(), newPw = $('p-pw').value;
+            const { error } = await sb.from('profiles').update({ name, phone }).eq('id', me.id);
+            if (error) return toast('수정 실패: ' + error.message, 1);
+            if (newPw) await sb.auth.updateUser({ password: newPw });
+            toast('회원 정보가 변경되었습니다.'); $('modal-profile').classList.add('hidden'); await init();
+        }
+
+        /* ---------- 공통 로딩 ---------- */
+        async function loadAll() {
+            if (loaded) return true;
+            const [a, b] = await Promise.all([sb.from('spaces').select('*').order('id'), sb.from('memberships').select('*').eq('user_id', me.id)]);
+            if (a.error) { toast('공간 목록을 불러오지 못했습니다: ' + a.error.message, 1); return false; }
+            if (b.error) { toast('가입 정보를 불러오지 못했습니다: ' + b.error.message, 1); return false; }
+            let allSpaces = a.data || []; mem = {}; (b.data || []).forEach(m => mem[m.space_id] = normalizeMembership(m));
+            if (isAdmin() && !suggestionReady) {
+                suggestionReady = true;
+                const globalSpace = await ensureGlobalSuggestionBoard(allSpaces);
+                if (globalSpace && !allSpaces.some(s => s.id === globalSpace.id)) allSpaces = [...allSpaces, globalSpace];
+            }
+            suggestionSpace = allSpaces.find(s => s.name === GLOBAL_SUGGESTION_SPACE) || null;
+            spaces = allSpaces.filter(s => s.name !== GLOBAL_SUGGESTION_SPACE);
+            const mine = mySpaces();
+            curSpace = mine.find(s => s.id === curSpace?.id) || mine[0] || null;
+            const { data: boardData, error: boardError } = await sb.from('boards').select('id, space_id, name, description, write_perm').order('id');
+            if (boardError) { toast('게시판 목록을 불러오지 못했습니다: ' + boardError.message, 1); return false; }
+            allBoards = boardData || [];
+            suggestionBoard = allBoards.find(b => b.space_id === suggestionSpace?.id && b.name === SUGGESTION_BOARD_NAME) || null;
+            await loadBoards();
+            const canManageCurrentSpace = curSpace && curSpace.id !== suggestionSpace?.id && isOp(curSpace.id);
+            $('tab-ops').classList.toggle('hidden', !canManageCurrentSpace);
+            loaded = true;
+            return true;
+        }
+
+        async function refreshAll() { loaded = false; return loadAll(); }
+
+        async function ensureGlobalSuggestionBoard(allSpaces) {
+            let globalSpace = allSpaces.find(s => s.name === GLOBAL_SUGGESTION_SPACE);
+            if (!globalSpace) {
+                const { data, error } = await sb.from('spaces').insert([{ name: GLOBAL_SUGGESTION_SPACE, description: '공통 건의사항 게시판 보관 공간' }]).select('*').single();
+                if (error) { toast('건의사항 공간 생성 실패: ' + error.message, 1); return null; }
+                globalSpace = data;
+            }
+
+            const { data: allSuggestionBoards, error: boardsError } = await sb.from('boards').select('*').eq('name', SUGGESTION_BOARD_NAME).order('id');
+            if (boardsError) { toast('건의사항 게시판 확인 실패: ' + boardsError.message, 1); return globalSpace; }
+            let globalBoard = (allSuggestionBoards || []).find(b => b.space_id === globalSpace.id);
+            if (!globalBoard) {
+                const { data, error } = await sb.from('boards').insert([{ space_id: globalSpace.id, name: SUGGESTION_BOARD_NAME, description: '공간과 관계없이 건의사항을 공유하는 게시판입니다.', write_perm: 'all' }]).select('*').single();
+                if (error) { toast('건의사항 게시판 생성 실패: ' + error.message, 1); return globalSpace; }
+                globalBoard = data;
+            }
+
+            const legacyBoards = (allSuggestionBoards || []).filter(b => b.id !== globalBoard.id);
+            for (const legacy of legacyBoards) {
+                const { error } = await sb.from('posts').update({ board_id: globalBoard.id }).eq('board_id', legacy.id);
+                if (error) { toast('기존 건의사항 글 이동 실패: ' + error.message, 1); return globalSpace; }
+            }
+            for (const legacy of legacyBoards) {
+                const { error } = await sb.from('boards').delete().eq('id', legacy.id);
+                if (error) { toast('중복 건의사항 게시판 정리 실패: ' + error.message, 1); return globalSpace; }
+            }
+            return globalSpace;
+        }
+
+        function loadBoards() {
+            if (!curSpace) { boards = []; curBoard = null; return; }
+            boards = allBoards.filter(b => b.space_id === curSpace.id && b.name !== SUGGESTION_BOARD_NAME);
+            curBoard = boards.find(b => b.id === curBoard?.id) || boards[0] || null;
+        }
+
+        async function goTab(t) {
+            curTab = t;
+            [['all', 'tab-all'], ['board', 'tab-board'], ['suggestions', 'tab-suggestions'], ['join', 'tab-join'], ['ops', 'tab-ops'], ['admin', 'tab-admin']].forEach(([k, tb]) => $(tb).classList.toggle('on', k === t));
+            [['all', 'v-all'], ['board', 'v-board'], ['join', 'v-join'], ['ops', 'v-ops'], ['admin', 'v-admin']].forEach(([k, v]) => $(v).classList.toggle('hidden', !(k === t || (k === 'board' && t === 'suggestions'))));
+            if (!await loadAll()) return;
+            if (t === 'all') { toAllList(); renderAllPosts(); }
+            else if (t === 'board') { renderBoardTab(); toList(); closeForm(); load(1); }
+            else if (t === 'suggestions') {
+                curSpace = suggestionSpace; curBoard = suggestionBoard; $('kw').value = '';
+                if (!curSpace || !curBoard) toast('건의사항 게시판이 준비되지 않았습니다. 전체 관리자에게 문의해 주세요.', 1);
+                renderBoardTab(); toList(); closeForm(); load(1);
+            }
+            else if (t === 'join') renderJoin();
+            else if (t === 'ops') {
+                if (curSpace?.id === suggestionSpace?.id) {
+                    curSpace = mySpaces()[0] || null;
+                    await loadBoards();
+                }
+                const canManageCurrentSpace = curSpace && curSpace.id !== suggestionSpace?.id && isOp(curSpace.id);
+                $('tab-ops').classList.toggle('hidden', !canManageCurrentSpace);
+                renderOps();
+            }
+            else renderAdmin();
+        }
+
+        /* ---------- 1. 전체 게시물 피드 ---------- */
+        async function renderAllPosts(page = 1) {
+            const sel = $('all-space'), rows = $('all-rows'), pg = $('all-pg');
+            rows.innerHTML = '<tr><td colspan="5" class="empty">불러오는 중...</td></tr>';
+            pg.innerHTML = '';
+            const prev = sel.value || 'all';
+            const mine = mySpaces();
+            sel.innerHTML = '<option value="all">전체 공간</option>' + mine.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+            sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'all';
+
+            const spaceIds = sel.value === 'all' ? mine.map(s => String(s.id)) : [sel.value];
+            if (sel.value === 'all' && suggestionSpace) spaceIds.push(String(suggestionSpace.id));
+            if (!spaceIds.length) { rows.innerHTML = '<tr><td colspan="5" class="empty">가입한 공간이 없습니다.</td></tr>'; return; }
+
+            const selectedSpaceIds = new Set(spaceIds);
+            const boardIds = allBoards.filter(b => selectedSpaceIds.has(String(b.space_id))).map(b => b.id);
+            if (!boardIds.length) { rows.innerHTML = '<tr><td colspan="5" class="empty">등록된 게시물이 없습니다.</td></tr>'; return; }
+
+            const size = 10, from = (page - 1) * size;
+            let q = sb.from('posts')
+                .select('*, boards(name, space_id, spaces(name)), profiles!author_id(name)', { count: 'exact' })
+                .in('board_id', boardIds)
+                .order('is_notice', { ascending: false })
+                .order('created_at', { ascending: false })
+                .range(from, from + size - 1);
+            const kw = $('all-kw').value.trim().replace(/[,()%*_]/g, ' ').trim();
+            if (kw) q = q.ilike('title', `%${kw}%`);
+            const { data, count, error } = await q;
+            if (error) {
+                rows.innerHTML = '<tr><td colspan="5" class="empty">목록을 불러오지 못했습니다.</td></tr>';
+                return toast('전체 목록을 불러오지 못했습니다: ' + error.message, 1);
+            }
+
+            rows.innerHTML = (data && data.length) ? data.map(p => {
+                const isMine = p.author_id === me.id;
+                const canRead = !p.is_private || isMine || isOp(p.boards?.space_id);
+                const authorName = p.author_label || (p.is_anonymous ? '익명' : (p.profiles?.name || '알 수 없음'));
+                const titleText = p.is_private ? (canRead ? `🔒 ${esc(p.title)}` : '🔒 비공개 글입니다.') : esc(p.title);
+                const isSuggestion = p.boards?.space_id === suggestionSpace?.id || p.boards?.name === SUGGESTION_BOARD_NAME;
+                const spaceName = p.boards?.spaces?.name || '공간';
+                const boardName = p.boards?.name || '게시판';
+                const location = isSuggestion ? '건의사항' : (sel.value === 'all' ? `${spaceName} / ${boardName}` : boardName);
+                const tag = p.is_notice ? '<span class="tag">공지</span>' : '';
+                return `<tr class="${p.is_notice ? 'pin' : ''}"><td><span class="badge all-location">${esc(location)}</span></td><td>${tag}${canRead ? `<a href="#" onclick="openPostDetail(${p.id},'all');return false"><b>${titleText}</b></a>` : `<span class="hint">${titleText}</span>`}</td><td>${canRead ? esc(authorName) : '***'}</td><td>${new Date(p.created_at).toLocaleDateString('ko-KR')}</td><td class="cnt">${p.view_count || 0}</td></tr>`;
+            }).join('') : `<tr><td colspan="5" class="empty">${kw ? '검색 결과가 없습니다.' : '등록된 게시물이 없습니다.'}</td></tr>`;
+
+            const n = Math.ceil((count || 0) / size); let h = '';
+            for (let i = 1; i <= n; i++) h += `<button class="btn sm ${i === page ? 'on' : ''}" onclick="renderAllPosts(${i})">${i}</button>`;
+            pg.innerHTML = h;
+}
+
+        async function openPostDetail(id, source) {
+            const prefix = source === 'all' ? 'ad-' : 'd-';
+            const list = source === 'all' ? $('all-list') : $('v-list');
+            const detail = source === 'all' ? $('all-detail') : $('v-detail');
+            list.classList.add('hidden'); detail.classList.remove('hidden');
+            if (source !== 'all') closeForm();
+            $(`${prefix}board`).textContent = '불러오는 중...';
+            $(`${prefix}t`).textContent = '불러오는 중...';
+            $(`${prefix}a`).textContent = '';
+            $(`${prefix}c`).textContent = '';
+            $(`${prefix}u`).textContent = '';
+            $(`${prefix}v`).textContent = '';
+            $(`${prefix}body`).textContent = '불러오는 중...';
+            $(source === 'all' ? 'acm' : 'cm').innerHTML = '<div class="hint">불러오는 중...</div>';
+            const { data: p, error } = await sb.from('posts').select('*, profiles!author_id(name), boards(name, space_id, spaces(name))').eq('id', id).single();
+            if (error || !p) { source === 'all' ? toAllList() : toList(); return toast('글을 불러올 수 없습니다.', 1); }
+
+            const isSuggestionPost = p.boards?.space_id === suggestionSpace?.id;
+            const spaceId = p.boards?.space_id;
+            const isMine = p.author_id === me.id;
+            if (p.is_private && !isMine && !isOp(spaceId)) {
+                source === 'all' ? toAllList() : toList();
+                return toast('비공개 글은 작성자와 운영자만 열람할 수 있습니다.', 1);
+            }
+
+            curPost = id;
+            curAuthor = p.author_id;
+            curSpace = isSuggestionPost ? suggestionSpace : (spaces.find(s => s.id === spaceId) || { id: spaceId, name: p.boards?.spaces?.name || '' });
+            curBoard = isSuggestionPost ? suggestionBoard : (boards.find(b => b.id === p.board_id) || { id: p.board_id, name: p.boards?.name || '' });
+
+            void sb.rpc('increment_view', { pid: id })
+                .then(({ error: viewError }) => { if (viewError) console.warn('조회수 반영 실패:', viewError.message); })
+                .catch(error => console.warn('조회수 반영 실패:', error));
+            const setText = (name, value) => { const element = $(prefix + name); if (element) element.textContent = value; };
+            setText('board', isSuggestionPost ? '건의사항' : `${p.boards?.spaces?.name || ''} · ${p.boards?.name || ''}`);
+            setText('t', (p.is_private ? '[🔒비공개] ' : '') + (p.is_notice ? '[공지] ' : '') + p.title);
+            setText('a', p.author_label || (p.is_anonymous ? '익명' : (p.profiles?.name || '알 수 없음')));
+            setText('c', fmt(p.created_at)); setText('u', fmt(p.updated_at || p.created_at));
+            setText('v', p.view_count ?? 0); setText('body', p.content);
+
+            const actions = source === 'all'
+                ? ((isMine || isOp(spaceId)) ? `<button class="btn del" onclick="delPost(${p.id})">삭제</button>` : '')
+                : (isMine ? `<button class="btn" onclick='openForm(${JSON.stringify(p).replace(/'/g, "&#39;")})'>수정</button> ` : '') + ((isMine || isOp(spaceId)) ? `<button class="btn del" onclick="delPost(${p.id})">삭제</button>` : '');
+            $(`${prefix}act`).innerHTML = actions;
+
+            await Promise.all([renderLike(), loadCm()]);
+        }
+
+        function toAllList() { $('all-detail').classList.add('hidden'); $('all-list').classList.remove('hidden'); }
+
+        /* ---------- 2. 네이버 카페 스타일 게시판 탭 ---------- */
+        function renderBoardTab() {
+            const has = !!curSpace;
+            $('no-space').classList.toggle('hidden', has); $('board-body').classList.toggle('hidden', !has);
+            $('suspended').classList.toggle('hidden', !(has && mem[curSpace.id]?.status === 'suspended'));
+
+            if (!has) return;
+
+            let treeHtml = '';
+            spaces.forEach(s => {
+                const isMemberOfSpace = isAdmin() || (mem[s.id] && mem[s.id].status === 'approved');
+                const isCurrentSpace = s.id === curSpace?.id;
+                treeHtml += `<div class="tree-group"><div class="tree-head" style="${isCurrentSpace ? 'color:var(--navy2);font-weight:700' : ''}">🏫 ${esc(s.name)} ${!isMemberOfSpace ? '<span class="hint" style="font-size:11px;color:var(--bad)">(미승인)</span>' : ''}</div>`;
+                const spaceBoards = allBoards.filter(b => b.space_id === s.id && b.name !== SUGGESTION_BOARD_NAME);
+                spaceBoards.forEach(b => {
+                    const isSelected = isCurrentSpace && b.id === curBoard?.id;
+                    treeHtml += `<a class="tree-item ${isSelected ? 'on' : ''}" onclick="selectSpaceAndBoard(${s.id},${b.id})">  └ ${esc(b.name)}</a>`;
+                });
+                treeHtml += '</div>';
+            });
+            $('board-tree').innerHTML = treeHtml || '<div class="hint">게시판이 없습니다.</div>';
+
+            const suggestionMode = isSuggestionTab();
+            $('v-board').classList.toggle('suggestion-mode', suggestionMode);
+            $('board-sidebar').classList.toggle('hidden', suggestionMode);
+            const hasAccess = suggestionMode || isAdmin() || (mem[curSpace.id] && mem[curSpace.id].status === 'approved');
+
+            $('b-name').textContent = suggestionMode ? '건의사항' : (curBoard?.name || '게시판 선택');
+            $('b-desc').textContent = suggestionMode ? '공간과 관계없이 건의사항을 공유하는 게시판입니다.' : (curBoard?.description || '');
+            $('b-lock').classList.toggle('hidden', hasAccess);
+            $('btn-write').disabled = !canWrite();
+            $('btn-write').title = canWrite() ? '' : '이 게시판에는 글을 쓸 수 없습니다.';
+            $('f-notice').classList.toggle('hidden', !(suggestionMode ? isAdmin() : isOp(curSpace.id)));
+        }
+
+        async function selectSpaceAndBoard(sid, bid) {
+            curSpace = spaces.find(s => s.id === sid);
+            await loadBoards();
+            curBoard = boards.find(b => b.id === bid) || boards[0] || null;
+            $('kw').value = '';
+            toList();
+            closeForm();
+            renderBoardTab();
+            load(1);
+        }
+
+        async function selectSpace(id) { curSpace = spaces.find(s => s.id === id); curBoard = null; $('kw').value = ''; await loadBoards(); $('tab-ops').classList.toggle('hidden', !isOp(id)); renderBoardTab(); toList(); closeForm(); load(1); }
+        function selectBoard(id) { curBoard = boards.find(b => b.id === id); $('kw').value = ''; toList(); closeForm(); renderBoardTab(); load(1); }
+
+        async function load(page = 1) {
+            curPage = page; const tb = $('rows');
+            if (!curBoard) { tb.innerHTML = '<tr><td colspan="6" class="empty">게시판을 선택하세요.</td></tr>'; $('pg').innerHTML = ''; return; }
+
+            const hasAccess = isSuggestionBoard() || isAdmin() || (mem[curSpace.id] && mem[curSpace.id].status === 'approved');
+            if (!hasAccess) {
+                tb.innerHTML = '<tr><td colspan="6" class="empty" style="color:var(--bad)">🔒 이 공간에 접근 권한이 없습니다. "공간 가입" 탭에서 가입 신청을 진행해 주세요.</td></tr>';
+                $('pg').innerHTML = '';
+                return;
+            }
+
+            const size = 10, from = (page - 1) * size;
+            tb.innerHTML = '<tr><td colspan="6" class="empty">불러오는 중...</td></tr>';
+            $('pg').innerHTML = '';
+            let q = sb.from('posts').select('*, profiles!author_id(name), post_likes(count)', { count: 'exact' }).eq('board_id', curBoard.id).order('is_notice', { ascending: false }).order('created_at', { ascending: false }).range(from, from + size - 1);
+            const kw = $('kw').value.trim().replace(/[,()%*]/g, ' ');
+            if (kw) q = q.or(`title.ilike.%${kw}%,content.ilike.%${kw}%`);
+            const { data, count, error } = await q;
+            if (error) return toast('목록을 불러오지 못했습니다: ' + error.message, 1);
+
+            const totalCount = count || 0;
+
+            tb.innerHTML = (data && data.length) ? data.map((p, index) => {
+                const isMine = p.author_id === me.id;
+                const canRead = !p.is_private || isMine || isOp(curSpace.id);
+                const authorName = p.author_label || (p.is_anonymous ? '익명' : (p.profiles?.name || '알 수 없음'));
+                const titleText = p.is_private ? (canRead ? `🔒 ${esc(p.title)}` : '🔒 비공개 글입니다.') : esc(p.title);
+                const itemNum = totalCount - (from + index);
+
+                return `<tr class="${p.is_notice ? 'pin' : ''}"><td class="num">${p.is_notice ? '' : itemNum}</td><td>${p.is_notice ? '<span class="tag">공지</span>' : ''}${canRead ? `<a href="#" onclick="openPostDetail(${p.id},'board');return false">${titleText}</a>` : `<span class="hint">${titleText}</span>`}</td><td>${canRead ? esc(authorName) : '***'}</td><td>${new Date(p.created_at).toLocaleDateString('ko-KR')}</td><td class="cnt">${p.view_count ?? 0}</td><td class="cnt">${p.post_likes?.[0]?.count || 0}</td></tr>`;
+            }).join('') : `<tr><td colspan="6" class="empty">${kw ? '검색 결과가 없습니다.' : '이 게시판에 아직 글이 없습니다.'}</td></tr>`;
+
+            const n = Math.ceil(totalCount / size); let h = '';
+            for (let i = 1; i <= n; i++) h += `<button class="btn sm ${i === page ? 'on' : ''}" onclick="load(${i})">${i}</button>`;
+            $('pg').innerHTML = h;
+        }
+
+        function openForm(p) {
+            if (!p && !canWrite()) return toast('이 게시판에는 글을 쓸 수 없습니다.', 1);
+            if (p && !canPostCurrent()) return toast('이용이 정지된 상태에서는 수정할 수 없습니다.', 1);
+            toList(); $('board-toolbar').classList.add('hidden'); $('form').classList.remove('hidden');
+            $('f-title').textContent = p ? '게시글 수정' : (isSuggestionBoard() ? '건의사항에 글쓰기' : `${curSpace.name} · ${curBoard.name}에 글쓰기`);
+            $('f-id').value = p?.id || ''; $('f-t').value = p?.title || ''; $('f-c').value = p?.content || '';
+            $('f-anon').checked = !!p?.is_anonymous; $('f-priv').checked = !!p?.is_private; $('f-n').checked = !!p?.is_notice;
+            $('f-t').focus();
+        }
+
+        function closeForm() { $('form').classList.add('hidden'); $('board-toolbar').classList.remove('hidden'); }
+
+        async function save() {
+            const id = $('f-id').value, title = $('f-t').value.trim(), content = $('f-c').value.trim();
+            if (!title || !content) return toast('제목과 내용을 모두 입력해 주세요.', 1);
+            const op = isOp(curSpace.id), notice = op && $('f-n').checked;
+            const anon = $('f-anon').checked, priv = $('f-priv').checked;
+            let error;
+
+            if (id) {
+                const body = { title, content, is_anonymous: anon, is_private: priv, updated_at: new Date().toISOString() };
+                if (op) body.is_notice = notice;
+                ({ error } = await sb.from('posts').update(body).eq('id', id));
+            } else {
+                ({ error } = await sb.from('posts').insert([{ title, content, is_notice: notice, is_anonymous: anon, is_private: priv, author_id: me.id, board_id: curBoard.id }]));
+            }
+
+            if (error) return toast('저장 실패: ' + error.message, 1);
+            closeForm(); toast(id ? '수정되었습니다.' : '작성되었습니다.');
+            id ? openPostDetail(id, 'board') : load(1);
+        }
+
+        /* ---------- 상세보기 / 조회수 / 추천 ---------- */
+        async function renderLike() {
+            const [c, l] = await Promise.all([
+                sb.from('post_likes').select('post_id', { count: 'exact', head: true }).eq('post_id', curPost),
+                sb.from('post_likes').select('post_id').eq('post_id', curPost).eq('user_id', me.id)
+            ]);
+            liked = !!(l.data && l.data.length);
+            const b = $(curTab === 'all' ? 'ad-like' : 'd-like'), own = curAuthor === me.id;
+            if (!b) return;
+            b.textContent = `${liked ? '추천 취소' : '추천'} ${c.count || 0}`;
+            b.classList.toggle('pri', liked);
+            b.disabled = own || !canPostCurrent();
+            b.title = own ? '내 글은 추천할 수 없습니다.' : '';
+        }
+
+        async function toggleLike() {
+            const { error } = liked
+                ? await sb.from('post_likes').delete().eq('post_id', curPost).eq('user_id', me.id)
+                : await sb.from('post_likes').insert([{ post_id: curPost, user_id: me.id }]);
+            if (error) return toast('추천 처리 실패: ' + error.message, 1);
+            await renderLike();
+        }
+
+        function toList() { $('v-detail').classList.add('hidden'); $('v-list').classList.remove('hidden'); }
+
+        async function delPost(id) {
+            if (!confirm('이 글을 삭제할까요? 댓글도 함께 삭제됩니다.')) return;
+            const { error } = await sb.from('posts').delete().eq('id', id);
+            if (error) return toast('삭제 실패: ' + error.message, 1);
+            toast('삭제되었습니다.');
+            if (curTab === 'all') { toAllList(); renderAllPosts(); }
+            else { toList(); load(curPage); }
+        }
+
+        /* ---------- 댓글 ---------- */
+        async function loadCm() {
+            const targetNum = curTab === 'all' ? $('acm-n') : $('cm-n');
+            const targetCm = curTab === 'all' ? $('acm') : $('cm');
+            targetCm.innerHTML = '<div class="hint">불러오는 중...</div>';
+            const { data, error } = await sb.from('comments').select('*, profiles(name)').eq('post_id', curPost).order('created_at');
+
+            if (error) {
+                targetCm.innerHTML = '<div class="hint">댓글을 불러오지 못했습니다.</div>';
+                return toast('댓글을 불러오지 못했습니다: ' + error.message, 1);
+            }
+
+            if (targetNum) targetNum.textContent = data?.length ? `(${data.length})` : '';
+            if (targetCm) {
+                targetCm.innerHTML = (data && data.length) ? data.map(c => `<div class="cm"><div><b>${esc(c.author_label || c.profiles?.name || '탈퇴한 회원')}</b> <small>${fmt(c.created_at)}</small><br>${esc(c.content)}</div>${(me.id === c.author_id || isOp(curSpace.id)) ? `<button class="btn sm del" onclick="delCm(${c.id})">삭제</button>` : ''}</div>`).join('')
+                    : '<div class="hint" style="padding:10px 0">첫 댓글을 남겨 보세요.</div>';
+            }
+        }
+
+        async function addCm() {
+            if (!canPostCurrent()) return toast('이 게시판에서 댓글을 쓸 수 없습니다.', 1);
+            const inputEl = curTab === 'all' ? $('acm-in') : $('cm-in');
+            const content = inputEl.value.trim(); if (!content) return toast('댓글 내용을 입력해 주세요.', 1);
+            const { error } = await sb.from('comments').insert([{ post_id: curPost, content, author_id: me.id }]);
+            if (error) return toast('댓글 작성 실패: ' + error.message, 1);
+            inputEl.value = ''; loadCm();
+        }
+
+        async function delCm(id) {
+            if (!confirm('댓글을 삭제할까요?')) return;
+            const { error } = await sb.from('comments').delete().eq('id', id);
+            if (error) return toast('삭제 실패: ' + error.message, 1);
+            loadCm();
+        }
+
+        /* ---------- 3. 공간 가입 ---------- */
+        function renderJoin() {
+            if (isAdmin()) return;
+            $('join-rows').innerHTML = spaces.length ? spaces.map(s => {
+                const m = mem[s.id]; let st;
+                if (!m || m.left_at) st = `<button class="btn sm pri" onclick="applySpace(${s.id})">${m?.left_at ? '재가입 신청' : '가입 신청'}</button>`;
+                else if (m.status === 'pending') st = `<span class="st pending">승인 대기 중</span> <button class="btn sm" onclick="cancelApply(${s.id})">취소</button>`;
+                else if (m.status === 'approved') st = '<span class="st approved">가입됨</span>';
+                else st = '<span class="st suspended">이용 정지</span>';
+                return `<tr><td>${esc(s.name)}</td><td class="hint">${esc(s.description || '')}</td><td>${st}</td></tr>`;
+            }).join('') : '<tr><td colspan="3" class="empty">아직 공간이 없습니다. 전체 관리자가 공간을 만들어야 합니다.</td></tr>';
+        }
+
+        async function applySpace(id) {
+            const existing = mem[id];
+            const { error } = existing?.left_at
+                ? await sb.from('memberships').update({ left_at: null, status: 'pending', role: 'member', suspension_reason: null }).eq('space_id', id).eq('user_id', me.id)
+                : await sb.from('memberships').insert([{ space_id: id, user_id: me.id, role: 'member', status: 'pending' }]);
+            if (error) return toast('신청 실패: ' + error.message, 1);
+            toast('가입을 신청했습니다. 운영자의 승인을 기다려 주세요.'); await refreshAll(); renderJoin();
+        }
+
+        async function cancelApply(id) {
+            const { error } = await sb.from('memberships').delete().eq('space_id', id).eq('user_id', me.id);
+            if (error) return toast('취소 실패: ' + error.message, 1);
+            toast('신청을 취소했습니다.'); await refreshAll(); renderJoin();
+        }
+
+        /* ---------- 4. 공간 운영 ---------- */
+        async function loadSpaceMembers() {
+    let list = null;
+    const { data, error } = await sb.rpc('get_space_members', { p_space_id: String(curSpace.id) });
+    if (!error && Array.isArray(data) && data.length) {
+        list = data.map(normalizeSpaceMember);
+    } else {
+        const { data: legacyData, error: legacyError } = await sb.from('memberships')
+            .select('*, profiles(name, phone, email, role)')
+            .eq('space_id', curSpace.id)
+            .order('created_at');
+        if (legacyError) {
+            console.error('회원 목록 조회 실패:', error?.message, legacyError.message);
+            toast('회원 목록을 불러오지 못했습니다: ' + legacyError.message, 1);
+            return null;
+        }
+        if (error || legacyData?.length) console.warn('get_space_members RPC를 사용할 수 없어 기존 회원 형식으로 조회했습니다:', error?.message || 'empty RPC response');
+        list = (legacyData || []).map(normalizeSpaceMember);
+    }
+
+    // RPC가 이메일을 안 주는 경우 profiles에서 보충
+    const missing = list.filter(m => !m.email || m.email === '-');
+    if (missing.length) {
+        const { data: ps, error: pe } = await sb.from('profiles').select('id, email').in('id', missing.map(m => m.user_id));
+        if (pe) console.warn('이메일 조회 실패:', pe.message);
+        const map = {};
+        (ps || []).forEach(p => { map[p.id] = p.email; });
+        list.forEach(m => { if ((!m.email || m.email === '-') && map[m.user_id]) m.email = map[m.user_id]; });
+    }
+    return list;
+}
+        async function renderOps() {
+            if (!curSpace || !isOp(curSpace.id)) return;
+            const spaceName = curSpace.name === GLOBAL_SUGGESTION_SPACE ? '건의사항' : curSpace.name;
+            $('o-space').textContent = $('o-space2').textContent = spaceName;
+
+            const [operatorsResult, data] = await Promise.all([
+                sb.from('board_operators').select('board_id, user_id, profiles(name)'),
+                loadSpaceMembers()
+            ]);
+            const opList = operatorsResult.data;
+            $('b-rows').innerHTML = boards.length ? boards.map(b => {
+                const assignedOps = (opList || []).filter(o => o.board_id === b.id).map(o => o.profiles?.name).filter(Boolean).join(', ');
+                return `<tr><td>${esc(b.name)}</td><td class="hint">${esc(b.description || '')}</td><td>${permTxt(b.write_perm)}</td><td class="hint">${assignedOps || '전담자 없음'}</td><td><div class="acts"><button class="btn sm" onclick="assignBoardOp(${b.id})">전담 지정</button><button class="btn sm" onclick="renameBoard(${b.id})">이름 변경</button><button class="btn sm" onclick="togglePerm(${b.id})">권한 변경</button><button class="btn sm del" onclick="delBoard(${b.id})">삭제</button></div></td></tr>`;
+            }).join('') : '<tr><td colspan="5" class="empty">게시판이 없습니다. 아래에서 추가하세요.</td></tr>';
+
+            if (!data) return;
+            currentSpaceMembers = data;
+            const lab = { pending: '승인 대기', approved: '정상', suspended: '정지' };
+            $('members').innerHTML = (data && data.length) ? data.map(m => {
+                const self = m.user_id === me.id, isSiteAdmin = m.site_role === 'admin'; let a = '';
+                if (!self && !isSiteAdmin) {
+                    if (!m.left_at) {
+                        if (m.status === 'pending') a += `<button class="btn sm pri" onclick="setMem('${m.user_id}',{status:'approved'})">승인</button><button class="btn sm del" onclick="rejectMem('${m.user_id}')">거절</button>`;
+                        else if (m.status === 'approved') a += `<button class="btn sm del" onclick="openSuspensionModal('${m.user_id}')">운영 정지</button>`;
+                        else if (m.status === 'suspended') a += `<button class="btn sm" onclick="unsuspendMember('${m.user_id}')">정지 해제</button>`;
+                        if (isAdmin() && m.status === 'approved') a += `<button class="btn sm" onclick="openOperatorModal('space',null,'${m.user_id}','${m.role === 'operator' ? 'member' : 'operator'}')">${m.role === 'operator' ? '운영자 해제' : '운영자 지정'}</button>`;
+                    }
+                    if (!m.left_at || isAdmin()) a += `<button class="btn sm del" onclick="openDeleteModal('${m.user_id}')">계정 삭제</button>`;
+                }
+                const status = m.left_at ? '탈퇴' : (lab[m.status] || '알 수 없음');
+                const reasonTitle = m.status === 'suspended' && m.suspension_reason ? ` title="${esc(m.suspension_reason)}"` : '';
+                return `<tr><td>${esc(m.name || '알 수 없음')}</td><td class="hint">${esc((m.email || '-').trim())}</td><td class="hint">${esc(m.phone || '-')}</td><td>${m.role === 'operator' ? '운영자' : '회원'}</td><td><span class="st ${m.left_at ? '' : m.status}"${reasonTitle}>${status}</span></td><td><div class="acts">${a}</div></td></tr>`;
+            }).join('') : '<tr><td colspan="6" class="empty">회원이 없습니다.</td></tr>';
+        }
+
+        function closeMemberModal(id) { $(id).classList.add('hidden'); }
+
+        function openOperatorModal(mode, boardId, userId, role) {
+            operatorIntent = { mode, boardId, role };
+            const member = currentSpaceMembers.find(m => m.user_id === userId);
+            $('operator-modal-title').textContent = mode === 'board' ? '게시판 전담 운영자 지정' : (role === 'member' ? '공간 운영자 해제' : '공간 운영자 지정');
+            $('operator-email').value = member?.email || '';
+            $('modal-operator').classList.remove('hidden');
+            $('operator-email').focus();
+        }
+
+        async function assignBoardOp(bid) { openOperatorModal('board', bid); }
+
+        async function saveOperatorByEmail() {
+            const email = $('operator-email').value.trim().toLowerCase();
+            if (!email) return toast('이메일을 입력해 주세요.', 1);
+            const data = await loadSpaceMembers();
+            if (!data) return;
+            const member = data.find(m => !m.left_at && m.status === 'approved' && m.site_role !== 'admin' && m.email.toLowerCase() === email);
+            if (!member) return toast('해당 이메일의 회원을 찾을 수 없습니다.', 1);
+
+            let result;
+            if (operatorIntent?.mode === 'board') {
+                result = await sb.from('board_operators').insert([{ board_id: operatorIntent.boardId, user_id: member.user_id }]);
+            } else {
+                result = await sb.from('memberships').update({ role: operatorIntent.role }).eq('space_id', curSpace.id).eq('user_id', member.user_id);
+            }
+            if (result.error) return toast('운영자 변경 실패: ' + result.error.message, 1);
+            closeMemberModal('modal-operator');
+            toast(operatorIntent.mode === 'board' ? '게시판 전담 운영자가 지정되었습니다.' : '공간 운영자 역할을 변경했습니다.');
+            await refreshAll(); await renderOps();
+        }
+
+        function openSuspensionModal(userId) {
+            const member = currentSpaceMembers.find(m => m.user_id === userId);
+            if (!member || userId === me.id || member.site_role === 'admin') return toast('이 회원은 정지할 수 없습니다.', 1);
+            deleteTargetUserId = userId;
+            $('suspension-target').textContent = member.name || '회원';
+            $('suspension-reason').value = '';
+            $('modal-suspension').classList.remove('hidden');
+            $('suspension-reason').focus();
+        }
+
+        async function suspendMember() {
+            if (!deleteTargetUserId) return;
+            const { error } = await sb.rpc('manage_space_member', { p_space_id: String(curSpace.id), p_user_id: deleteTargetUserId, p_action: 'suspend', p_reason: $('suspension-reason').value.trim() || null });
+            if (error) return toast('운영 정지 실패: ' + error.message, 1);
+            closeMemberModal('modal-suspension'); deleteTargetUserId = null;
+            toast('이 공간에서 운영 정지했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        async function unsuspendMember(userId) {
+            const { error } = await sb.rpc('manage_space_member', { p_space_id: String(curSpace.id), p_user_id: userId, p_action: 'unsuspend', p_reason: null });
+            if (error) return toast('정지 해제 실패: ' + error.message, 1);
+            toast('이 공간의 정지를 해제했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        function openDeleteModal(userId) {
+            const member = currentSpaceMembers.find(m => m.user_id === userId);
+            if (!member || userId === me.id || member.site_role === 'admin') return toast('본인 또는 최고 관리자 계정은 삭제할 수 없습니다.', 1);
+            deleteTargetUserId = userId;
+            $('delete-member-name').textContent = member.name || '회원';
+            $('delete-site-option').classList.toggle('hidden', !isAdmin());
+            $('delete-scope-space').checked = !member.left_at || !isAdmin();
+            $('delete-scope-site').checked = !!member.left_at && isAdmin();
+            $('delete-scope-space').disabled = !!member.left_at;
+            $('modal-delete-member').classList.remove('hidden');
+        }
+
+        async function deleteMemberAccount() {
+            const userId = deleteTargetUserId;
+            const member = currentSpaceMembers.find(m => m.user_id === userId);
+            if (!userId || !member || userId === me.id || member.site_role === 'admin') return toast('본인 또는 최고 관리자 계정은 삭제할 수 없습니다.', 1);
+            if (!confirm('정말 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+            const scope = document.querySelector('input[name="delete-scope"]:checked')?.value;
+            if (scope === 'site') {
+                if (!isAdmin()) return toast('사이트 관리자만 전체 계정을 삭제할 수 있습니다.', 1);
+                const { error } = await sb.functions.invoke('admin-delete-account', { body: { userId } });
+                if (error) return toast('사이트 계정 삭제 실패: ' + error.message, 1);
+            } else {
+                if (member.left_at) return toast('이미 이 공간에서 탈퇴한 회원입니다.', 1);
+                const { error } = await sb.rpc('manage_space_member', { p_space_id: String(curSpace.id), p_user_id: userId, p_action: 'leave', p_reason: null });
+                if (error) return toast('공간 탈퇴 처리 실패: ' + error.message, 1);
+            }
+            closeMemberModal('modal-delete-member'); deleteTargetUserId = null;
+            toast(scope === 'site' ? '사이트 계정을 삭제했습니다.' : '이 공간에서 탈퇴 처리했습니다.');
+            await refreshAll(); await renderOps();
+        }
+
+        async function setMem(uid, patch) {
+            const { error } = await sb.from('memberships').update(patch).eq('space_id', curSpace.id).eq('user_id', uid);
+            if (error) return toast('변경 실패: ' + error.message, 1);
+            toast('변경했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        async function rejectMem(uid) {
+            if (!confirm('이 가입 신청을 거절할까요?')) return;
+            const { error } = await sb.from('memberships').delete().eq('space_id', curSpace.id).eq('user_id', uid);
+            if (error) return toast('거절 실패: ' + error.message, 1);
+            toast('거절했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        const boardErr = e => e.code === '23505' ? '이 공간에 같은 이름의 게시판이 있습니다.' : '실패: ' + e.message;
+
+        async function addBoard() {
+            const name = $('nb-name').value.trim(); if (!name) return toast('게시판 이름을 입력해 주세요.', 1);
+            const { error } = await sb.from('boards').insert([{ space_id: curSpace.id, name, description: $('nb-desc').value.trim(), write_perm: dbPerm($('nb-perm').value) }]);
+            if (error) return toast(boardErr(error), 1);
+            $('nb-name').value = ''; $('nb-desc').value = ''; toast('게시판을 추가했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        async function renameBoard(id) {
+            const b = boards.find(x => x.id === id), name = (prompt('새 게시판 이름', b.name) || '').trim();
+            if (!name || name === b.name) return;
+            const { error } = await sb.from('boards').update({ name }).eq('id', id);
+            if (error) return toast(boardErr(error), 1);
+            toast('이름을 변경했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        async function togglePerm(id) {
+            const b = boards.find(x => x.id === id), perm = b.write_perm === 'all' ? 'admin' : 'all';
+            const { error } = await sb.from('boards').update({ write_perm: perm }).eq('id', id);
+            if (error) return toast(boardErr(error), 1);
+            toast('글쓰기 권한: ' + permTxt(perm)); await refreshAll(); await renderOps();
+        }
+
+        async function delBoard(id) {
+            const b = boards.find(x => x.id === id);
+            const { count } = await sb.from('posts').select('id', { count: 'exact', head: true }).eq('board_id', id);
+            if (!confirm(count ? `“${b.name}” 게시판에 글이 ${count}개 있습니다.\n삭제하면 글과 댓글이 모두 사라집니다. 삭제할까요?` : `“${b.name}” 게시판을 삭제할까요?`)) return;
+            const { error } = await sb.from('boards').delete().eq('id', id);
+            if (error) return toast('삭제 실패: ' + error.message, 1);
+            toast('게시판을 삭제했습니다.'); await refreshAll(); await renderOps();
+        }
+
+        /* ---------- 5. 전체 관리자 ---------- */
+        function renderAdmin() {
+            $('s-rows').innerHTML = spaces.length ? spaces.map(s => `<tr><td>${esc(s.name)}</td><td class="hint">${esc(s.description || '')}</td><td><button class="btn sm del" onclick="delSpace(${s.id})">삭제</button></td></tr>`).join('')
+                : '<tr><td colspan="3" class="empty">공간이 없습니다. 아래에서 만드세요.</td></tr>';
+        }
+
+        async function addSpace() {
+            const name = $('ns-name').value.trim(); if (!name) return toast('공간 이름을 입력해 주세요.', 1);
+            const { error } = await sb.from('spaces').insert([{ name, description: $('ns-desc').value.trim() }]);
+            if (error) return toast(error.code === '23505' ? '이미 같은 이름의 공간이 있습니다.' : '실패: ' + error.message, 1);
+            $('ns-name').value = ''; $('ns-desc').value = ''; toast('공간을 만들었습니다.'); await refreshAll(); renderAdmin();
+        }
+
+        async function delSpace(id) {
+            const s = spaces.find(x => x.id === id);
+            if (!confirm(`“${s.name}” 공간을 삭제할까요?\n이 공간의 게시판, 글, 댓글, 회원 정보가 모두 사라집니다.`)) return;
+            const { error } = await sb.from('spaces').delete().eq('id', id);
+            if (error) return toast('삭제 실패: ' + error.message, 1);
+            toast('공간을 삭제했습니다.'); await refreshAll(); renderAdmin();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
